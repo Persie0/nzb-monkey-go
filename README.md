@@ -62,6 +62,38 @@ parts actually have a shared header/stem. Unrelated randomized filenames
 cannot always be grouped safely from metadata alone. No article bodies are
 downloaded during searching.
 
+### When the indexer's poster is not the NNTP From field
+
+If normal metadata search reports **zero poster matches**, that means no
+matching `From` header was seen in the chosen NNTP group/date interval; it
+does **not** prove an upload has been deleted. The search now prints the
+most active real `From` values within 15 minutes of the timestamp.
+
+To search for an upload whose indexer poster may be an alias, explicitly
+allow candidate discovery **without trusting the poster**:
+
+```sh
+nzb-monkey-go \
+  --subject "Example.Release.Name" \
+  --group "alt.binaries.example" \
+  --date 1772172628 \
+  --ignore-poster \
+  --metadata-window-hours 6 \
+  --expected-files 25 \
+  --expected-size-gb 24.81 \
+  --debug
+```
+
+This scans the given group within six hours before/after the exact Unix
+timestamp. You can raise `--metadata-window-hours` up to 24, but the
+candidate cap prevents unbounded memory usage. The scanner groups files by
+both actual NNTP poster **and** multipart subject/stem, then requires a
+complete, unique size/file-count match. The guess is not cryptographic
+verification of release identity: inspect the generated NZB before using
+it, particularly for a fully obfuscated upload. There can still be
+misses if every article has an unrelated randomized subject or the NNTP
+provider's overview range lacks the post.
+
 ## Windows and Linux binaries
 
 The binaries are available on the [release page](https://github.com/Tensai75/nzb-monkey-go/releases).
