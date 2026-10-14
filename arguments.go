@@ -16,21 +16,23 @@ import (
 
 // arguments structure
 type Args struct {
-	Nzblnk         string   `arg:"positional" help:"a qualified NZBLNK URI (nzblnk://?h=...)"`
-	Header         string   `arg:"-s,--subject" help:"the header/subject to search for"`
-	Title          string   `arg:"-t,--title" help:"the title/tag for the NZB file"`
-	Password       string   `arg:"-p,--password" help:"the password to extract the download"`
-	Groups         []string `arg:"-g,--group" help:"the group(s) to search in (several groups seperated with space)"`
-	Date           string   `arg:"-d,--date" help:"the date the upload was posted to Usenet (either in the format DD.MM.YYYY or as a Unix timestamp)"`
-	Category       string   `arg:"-c,--category" help:"the category to use for the target (if supportet by the target)"`
-	Poster         string   `arg:"--poster" help:"enable obfuscated-upload search using the NNTP From/poster field"`
-	ExpectedFiles  int      `arg:"--expected-files" help:"expected number of files in the NZB for metadata search"`
-	ExpectedSizeGB float64  `arg:"--expected-size-gb" help:"expected total NZB size in decimal GB for metadata search"`
-	UnixDate       int64    `arg:"-"` // will hold the parsed Unix timestamp
-	IsTimestamp    bool     `arg:"-"` // will indicate if exact timestamp was passed as date
-	Config         string   `arg:"--config" help:"path to the config file"`
-	Debug          bool     `arg:"--debug" help:"logs output to log file"`
-	Register       bool     `arg:"--register" help:"register the NZBLNK protocol"`
+	Nzblnk              string   `arg:"positional" help:"a qualified NZBLNK URI (nzblnk://?h=...)"`
+	Header              string   `arg:"-s,--subject" help:"the header/subject to search for"`
+	Title               string   `arg:"-t,--title" help:"the title/tag for the NZB file"`
+	Password            string   `arg:"-p,--password" help:"the password to extract the download"`
+	Groups              []string `arg:"-g,--group" help:"the group(s) to search in (several groups seperated with space)"`
+	Date                string   `arg:"-d,--date" help:"the date the upload was posted to Usenet (either in the format DD.MM.YYYY or as a Unix timestamp)"`
+	Category            string   `arg:"-c,--category" help:"the category to use for the target (if supportet by the target)"`
+	Poster              string   `arg:"--poster" help:"enable obfuscated-upload search using the NNTP From/poster field"`
+	IgnorePoster        bool     `arg:"--ignore-poster" help:"search by time, size and file count without requiring the indexed poster to match"`
+	MetadataWindowHours int      `arg:"--metadata-window-hours" help:"hour range on either side of exact timestamp for ignore-poster search (default 6; max 24)"`
+	ExpectedFiles       int      `arg:"--expected-files" help:"expected number of files in the NZB for metadata search"`
+	ExpectedSizeGB      float64  `arg:"--expected-size-gb" help:"expected total NZB size in decimal GB for metadata search"`
+	UnixDate            int64    `arg:"-"` // will hold the parsed Unix timestamp
+	IsTimestamp         bool     `arg:"-"` // will indicate if exact timestamp was passed as date
+	Config              string   `arg:"--config" help:"path to the config file"`
+	Debug               bool     `arg:"--debug" help:"logs output to log file"`
+	Register            bool     `arg:"--register" help:"register the NZBLNK protocol"`
 }
 
 // version information
@@ -156,15 +158,36 @@ func checkArguments() {
 		}
 	}
 
-	// Metadata mode is explicit and requires independent checks against false
-	// positives: poster, number of files and total size.
-	if args.Poster != "" || args.ExpectedFiles != 0 || args.ExpectedSizeGB != 0 {
-		if strings.TrimSpace(args.Poster) == "" || args.ExpectedFiles < 1 || args.ExpectedSizeGB <= 0 || args.ExpectedSizeGB > 1000000 {
-			Log.Error("Metadata search requires --poster, --expected-files (positive) and --expected-size-gb (positive)")
+	// This mode deliberately requires independent release metadata; a poster
+	// mismatch can be diagnosed using --ignore-poster without trusting a
+	// potentially masked indexer poster alias.
+	metadataMode := args.Poster != "" || args.IgnorePoster || args.ExpectedFiles != 0 || args.ExpectedSizeGB != 0 || args.MetadataWindowHours != 0
+	if metadataMode {
+		if args.ExpectedFiles < 1 || args.ExpectedSizeGB <= 0 || args.ExpectedSizeGB > 1000000 {
+			Log.Error("Metadata search requires positive --expected-files and --expected-size-gb")
 			exit(1)
 		}
 		if args.UnixDate == 0 || len(args.Groups) == 0 {
-			Log.Error("Metadata search also requires --date and at least one --group")
+			Log.Error("Metadata search requires --date and at least one --group")
+			exit(1)
+		}
+		if !args.IgnorePoster && strings.TrimSpace(args.Poster) == "" {
+			Log.Error("Metadata search requires --poster or the explicit --ignore-poster flag")
+			exit(1)
+		}
+		if args.IgnorePoster && !args.IsTimestamp {
+			Log.Error("--ignore-poster requires an exact Unix timestamp to keep scanning bounded")
+			exit(1)
+		}
+		if args.MetadataWindowHours < 0 || args.MetadataWindowHours > metadataMaxWindowHours {
+			Log.Error("--metadata-window-hours must be between 1 and 24")
+			exit(1)
+		}
+		if args.IgnorePoster && args.MetadataWindowHours == 0 {
+			args.MetadataWindowHours = metadataDefaultWindowHours
+		}
+		if !args.IgnorePoster && args.MetadataWindowHours != 0 {
+			Log.Error("--metadata-window-hours is only supported with --ignore-poster")
 			exit(1)
 		}
 	}

@@ -72,6 +72,12 @@ func nzbdirectsearch(engine SearchEngine, name string) error {
 	if !args.IsTimestamp {
 		endDate += 60 * 60 * 24
 	}
+	if args.IgnorePoster {
+		// A posterless scan produces many more candidates. Require an exact
+		// timestamp and shrink the NNTP overview search before scanning.
+		startDate = args.UnixDate - int64(args.MetadataWindowHours*3600)
+		endDate = args.UnixDate + int64(args.MetadataWindowHours*3600)
+	}
 
 	// acquire lock if configured to allow only one instance of the direct search
 	if conf.Directsearch.OneInstanceOnly {
@@ -175,8 +181,12 @@ func searchInGroup(group string) ([]*nzbparser.Nzb, error) {
 	// When complete NZBFinder-like metadata is supplied, the release title
 	// may be absent from every NNTP subject. Search the overview by poster,
 	// then verify size and file count instead of searching for the title.
-	if args.Poster != "" {
-		Log.Info("Using metadata-assisted direct search (poster, size, file count) ...")
+	if args.Poster != "" || args.IgnorePoster {
+		if args.IgnorePoster {
+			Log.Info("Using metadata-assisted search without poster restriction: +/- %d hours", args.MetadataWindowHours)
+		} else {
+			Log.Info("Using metadata-assisted direct search (poster, size, file count) ...")
+		}
 		return searchMetadata(group, boundaries.FirstMessage.MessageID, boundaries.LastMessage.MessageID)
 	}
 

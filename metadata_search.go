@@ -19,7 +19,7 @@ import (
 
 // Keep the opt-in metadata scan bounded even in high-volume groups. Only
 // overview headers are read; article bodies are never downloaded.
-const metadataMaxPosterHits = 400000
+const metadataMaxPosterHits = metadataMaxCandidates
 
 type metadataCandidate struct {
 	key      string
@@ -90,7 +90,7 @@ func (c *metadataCandidate) nzb() *nzbparser.Nzb {
 // scanMetadataChunk is retried as a whole on a transport error. A fresh
 // connection is selected for each retry, and the group is selected explicitly
 // because NNTP connections are stateful.
-func scanMetadataChunk(ctx context.Context, group string, first, last uint, output chan<- nntp.MessageOverview, scanned *atomic.Uint64) error {
+func scanMetadataChunk(ctx context.Context, group string, first, last uint, output chan<- metadataOverviewHit, scanned *atomic.Uint64) error {
 	attempts := conf.Directsearch.OverviewRetries + 1
 	if attempts < 1 {
 		attempts = 1
@@ -137,19 +137,26 @@ func scanMetadataChunk(ctx context.Context, group string, first, last uint, outp
 				continue
 			}
 			scanned.Add(1)
-			// Parse only plausible poster matches to reduce CPU and memory.
-			if !strings.Contains(strings.ToLower(line), strings.ToLower(args.Poster)) {
+			// Parse all headers when explicitly ignoring the poster. During a
+			// normal scan, inspect nearby From values too, so a failed
+			// poster filter is diagnosable without a second NNTP scan.
+			hasPoster := args.Poster != "" && strings.Contains(strings.ToLower(line), strings.ToLower(args.Poster))
+			if !args.IgnorePoster && !hasPoster && !args.IsTimestamp {
 				continue
 			}
 			overview, parseErr := nntp.ParseOverviewLine(line)
-			if parseErr != nil || !metadataPosterMatches(overview.From, args.Poster) {
+			if parseErr != nil {
+				continue
+			}
+			posterMatch := metadataPosterMatches(overview.From, args.Poster)
+			if !args.IgnorePoster && !posterMatch && !metadataInWindow(overview.Date, args.UnixDate, metadataDiagnosticMinutes*time.Minute) {
 				continue
 			}
 			if overview.Date.IsZero() || overview.Date.Unix() < startDate-3600 || overview.Date.Unix() > endDate+3600 {
 				continue
 			}
 			select {
-			case output <- overview:
+			case output <- metadataOverviewHit{overview: overview, posterMatch: posterMatch}:
 			case <-ctx.Done():
 				err = ctx.Err()
 			}
@@ -185,7 +192,7 @@ func searchMetadata(group string, first, last uint) ([]*nzbparser.Nzb, error) {
 
 	type chunk struct{ first, last uint }
 	jobs := make(chan chunk, 8)
-	overviews := make(chan nntp.MessageOverview, 4096)
+	overviews := make(chan metadataOverviewHit, 4096)
 	errorsCh := make(chan error, 1)
 	var once sync.Once
 	var wg sync.WaitGroup
@@ -241,9 +248,17 @@ func searchMetadata(group string, first, last uint) ([]*nzbparser.Nzb, error) {
 	}()
 
 	candidates := make(map[string]*metadataCandidate)
+	nearbyPosterCounts := make(map[string]int)
 	matches := 0
 	parsedHits := 0
-	for overview := range overviews {
+	for hit := range overviews {
+		overview := hit.overview
+		if metadataInWindow(overview.Date, args.UnixDate, metadataDiagnosticMinutes*time.Minute) {
+			nearbyPosterCounts[overview.From]++
+		}
+		if !hit.posterMatch && !args.IgnorePoster {
+			continue
+		}
 		matches++
 		if matches > metadataMaxPosterHits {
 			once.Do(func() {
@@ -257,7 +272,7 @@ func searchMetadata(group string, first, last uint) ([]*nzbparser.Nzb, error) {
 		if err != nil {
 			continue
 		}
-		key := metadataSubjectKey(parsed.Header, parsed.Basefilename)
+		key := metadataCandidateKey(overview.From, metadataSubjectKey(parsed.Header, parsed.Basefilename))
 		if key == "" {
 			continue
 		}
@@ -275,7 +290,19 @@ func searchMetadata(group string, first, last uint) ([]*nzbparser.Nzb, error) {
 		return nil, err
 	default:
 	}
-	Log.Info("Metadata scan: %d headers scanned, %d poster hits, %d parsed, %d candidate groups", scanned.Load(), matches, parsedHits, len(candidates))
+	Log.Info("Metadata scan: %d headers scanned, %d candidate article hits, %d parsed, %d candidate groups", scanned.Load(), matches, parsedHits, len(candidates))
+	if matches == 0 && !args.IgnorePoster {
+		Log.Warn("No matching NNTP From header found for poster %q; this does not prove the post is unavailable", args.Poster)
+		if len(nearbyPosterCounts) > 0 {
+			Log.Info("Most active NNTP posters within +/- %d minutes of the supplied timestamp (diagnostic, not release matches):", metadataDiagnosticMinutes)
+			for _, poster := range metadataTopPosters(nearbyPosterCounts, 10) {
+				Log.Info("    %s: %d nearby articles", poster, nearbyPosterCounts[poster])
+			}
+		} else {
+			Log.Warn("No parseable headers near the exact timestamp; verify timestamp timezone and NNTP provider")
+		}
+		Log.Info("Use --ignore-poster to reconstruct candidates without trusting the indexer's poster field")
+	}
 
 	type ranked struct {
 		key       string
