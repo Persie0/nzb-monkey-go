@@ -40,7 +40,7 @@ func TestMetadataCandidateKeyIsolatesPosters(t *testing.T) {
 }
 
 func TestMetadataTopPosters(t *testing.T) {
-	got := metadataTopPosters(map[string]int{"third":1, "second":5, "first":5}, 2)
+	got := metadataTopPosters(map[string]int{"third": 1, "second": 5, "first": 5}, 2)
 	want := []string{"first", "second"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %q, want %q", got, want)
