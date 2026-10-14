@@ -6,19 +6,8 @@ import (
 	"strings"
 )
 
-// Obfuscated multi-file uploads frequently have a distinct filename for each
-// archive part but share a common posting header or archive stem.
-var archivePartSuffix = regexp.MustCompile(`(?i)(?:\.part[0-9]+|\.vol[0-9]+\+[0-9]+|\.r[0-9]{2,3}|\.rar|\.7z|\.zip|\.par2?|\.nfo|\.sfv|\.mkv|\.mp4|\.avi|\.m4v|\.ts)package main
-
-import (
-	"math"
-	"regexp"
-	"strings"
-)
-
-// Obfuscated multi-file uploads frequently have a distinct filename for each
-// archive part but share a common posting header or archive stem.
-)
+// Obfuscated multipart uploads can share a posting header or an archive stem.
+var archivePartSuffix = regexp.MustCompile(`(?i)(?:\.part[0-9]+|\.vol[0-9]+\+[0-9]+|\.r[0-9]{2,3}|\.rar|\.7z|\.zip|\.par2?|\.nfo|\.sfv|\.mkv|\.mp4|\.avi|\.m4v|\.ts)$`)
 var episodeNumber = regexp.MustCompile(`(?i)(s[0-9]{1,2})e[0-9]{1,3}(?:e[0-9]{1,3})?`)
 
 func metadataPosterMatches(from, poster string) bool {
@@ -26,13 +15,13 @@ func metadataPosterMatches(from, poster string) bool {
 	return poster != "" && strings.Contains(strings.ToLower(from), poster)
 }
 
-// A real shared posting header takes precedence over the filename. In the
-// subject parser, a missing header is replaced with the file's base filename.
+// The subject parser uses the basename as the header if no explicit header
+// exists. Normalize archive numbers and episode numbers in that case.
 func metadataSubjectKey(header, basefilename string) string {
 	header = strings.ToLower(strings.TrimSpace(header))
 	basefilename = strings.ToLower(strings.TrimSpace(basefilename))
 	if header != "" && header != basefilename {
-		return episodeNumber.ReplaceAllString(header, "${1}")
+		return episodeNumber.ReplaceAllString(header, "1")
 	}
 	stem := basefilename
 	for {
@@ -42,7 +31,7 @@ func metadataSubjectKey(header, basefilename string) string {
 		}
 		stem = next
 	}
-	return strings.Trim(episodeNumber.ReplaceAllString(stem, "${1}"), ". -_")
+	return strings.Trim(episodeNumber.ReplaceAllString(stem, "1"), ". -_")
 }
 
 func metadataSizeDeviation(actual, expected int64) float64 {
