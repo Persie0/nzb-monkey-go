@@ -16,21 +16,21 @@ import (
 
 // arguments structure
 type Args struct {
-	Nzblnk      string   `arg:"positional" help:"a qualified NZBLNK URI (nzblnk://?h=...)"`
-	Header      string   `arg:"-s,--subject" help:"the header/subject to search for"`
-	Title       string   `arg:"-t,--title" help:"the title/tag for the NZB file"`
-	Password    string   `arg:"-p,--password" help:"the password to extract the download"`
-	Groups      []string `arg:"-g,--group" help:"the group(s) to search in (several groups seperated with space)"`
-	Date        string   `arg:"-d,--date" help:"the date the upload was posted to Usenet (either in the format DD.MM.YYYY or as a Unix timestamp)"`
-	Category    string   `arg:"-c,--category" help:"the category to use for the target (if supportet by the target)"`
-	Poster          string   `arg:"--poster" help:"enable obfuscated-upload search using the NNTP From/poster field"`
-	ExpectedFiles   int      `arg:"--expected-files" help:"expected number of files in the NZB for metadata search"`
-	ExpectedSizeGB  float64  `arg:"--expected-size-gb" help:"expected total NZB size in decimal GB for metadata search"`
-	UnixDate    int64    `arg:"-"` // will hold the parsed Unix timestamp
-	IsTimestamp bool     `arg:"-"` // will indicate if exact timestamp was passed as date
-	Config      string   `arg:"--config" help:"path to the config file"`
-	Debug       bool     `arg:"--debug" help:"logs output to log file"`
-	Register    bool     `arg:"--register" help:"register the NZBLNK protocol"`
+	Nzblnk         string  `arg:"positional" help:"a qualified NZBLNK URI (nzblnk://?h=...)"`
+	Header         string  `arg:"-s,--subject" help:"the header/subject to search for"`
+	Title          string  `arg:"-t,--title" help:"the title/tag for the NZB file"`
+	Password       string  `arg:"-p,--password" help:"the password to extract the download"`
+	Groups         []string`arg:"-g,--group" help:"the group(s) to search in (several groups seperated with space)"`
+	Date           string  `arg:"-d,--date" help:"the date the upload was posted to Usenet (either in the format DD.MM.YYYY or as a Unix timestamp)"`
+	Category       string  `arg:"-c,--category" help:"the category to use for the target (if supportet by the target)"`
+	Poster         string  `arg:"--poster" help:"enable obfuscated-upload search using the NNTP From/poster field"`
+	ExpectedFiles  int     `arg:"--expected-files" help:"expected number of files in the NZB for metadata search"`
+	ExpectedSizeGB float64 `arg:"--expected-size-gb" help:"expected total NZB size in decimal GB for metadata search"`
+	UnixDate       int64   `arg:"-"` // will hold the parsed Unix timestamp
+	IsTimestamp    bool    `arg:"-"` // will indicate if exact timestamp was passed as date
+	Config         string  `arg:"--config" help:"path to the config file"`
+	Debug          bool    `arg:"--debug" help:"logs output to log file"`
+	Register       bool    `arg:"--register" help:"register the NZBLNK protocol"`
 }
 
 // version information
