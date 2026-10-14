@@ -296,7 +296,16 @@ func searchMetadata(group string, first, last uint) ([]*nzbparser.Nzb, error) {
 		rankedCandidates = append(rankedCandidates, r)
 		// NZBIndex-like size fields can differ slightly from yEnc overview
 		// byte counts. Refuse ambiguous matches rather than guessing.
-		if fileDelta == 0 && deviation <= 0.15 && nzb.TotalSegments == nzb.Segments {
+		timeMatches := true
+		if args.IsTimestamp {
+			// Indexers may report the start or completion time of a multipart
+			// posting. Either boundary must be reasonably close to the supplied
+			// precise time, rather than accepting an unrelated upload that day.
+			startDistance := math.Abs(float64(c.earliest.Unix() - args.UnixDate))
+			endDistance := math.Abs(float64(c.latest.Unix() - args.UnixDate))
+			timeMatches = !c.earliest.IsZero() && math.Min(startDistance, endDistance) <= 6*3600
+		}
+		if fileDelta == 0 && deviation <= 0.15 && timeMatches && nzb.TotalSegments == nzb.Segments {
 			accepted = append(accepted, r)
 		}
 	}
