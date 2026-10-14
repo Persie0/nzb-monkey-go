@@ -31,6 +31,8 @@ func TestMetadataSubjectKey(t *testing.T) {
 		{"ABC.part02", "ABC.part02", "abc"},
 		{"video.vol001+02.par2", "video.vol001+02.par2", "video"},
 		{"different", "file.part02", "different"},
+		{"Bridgerton.S04E01.GERMAN.DL.1080p.WEB.h264-SAUERKRAUT", "Bridgerton.S04E01.GERMAN.DL.1080p.WEB.h264-SAUERKRAUT", "bridgerton.s04.german.dl.1080p.web.h264-sauerkraut"},
+		{"Bridgerton.S04E02.GERMAN.DL.1080p.WEB.h264-SAUERKRAUT", "Bridgerton.S04E02.GERMAN.DL.1080p.WEB.h264-SAUERKRAUT", "bridgerton.s04.german.dl.1080p.web.h264-sauerkraut"},
 	}
 	for _, tt := range tests {
 		if got := metadataSubjectKey(tt.header, tt.filename); got != tt.want {
