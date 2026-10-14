@@ -21,7 +21,7 @@ func metadataSubjectKey(header, basefilename string) string {
 	header = strings.ToLower(strings.TrimSpace(header))
 	basefilename = strings.ToLower(strings.TrimSpace(basefilename))
 	if header != "" && header != basefilename {
-		return episodeNumber.ReplaceAllString(header, "1")
+		return episodeNumber.ReplaceAllString(header, "${1}")
 	}
 	stem := basefilename
 	for {
@@ -31,7 +31,7 @@ func metadataSubjectKey(header, basefilename string) string {
 		}
 		stem = next
 	}
-	return strings.Trim(episodeNumber.ReplaceAllString(stem, "1"), ". -_")
+	return strings.Trim(episodeNumber.ReplaceAllString(stem, "${1}"), ". -_")
 }
 
 func metadataSizeDeviation(actual, expected int64) float64 {
