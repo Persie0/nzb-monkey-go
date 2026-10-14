@@ -20,7 +20,7 @@ type Args struct {
 	Header         string   `arg:"-s,--subject" help:"the header/subject to search for"`
 	Title          string   `arg:"-t,--title" help:"the title/tag for the NZB file"`
 	Password       string   `arg:"-p,--password" help:"the password to extract the download"`
-	Groups         []string`arg:"-g,--group" help:"the group(s) to search in (several groups seperated with space)"`
+	Groups         []string `arg:"-g,--group" help:"the group(s) to search in (several groups seperated with space)"`
 	Date           string   `arg:"-d,--date" help:"the date the upload was posted to Usenet (either in the format DD.MM.YYYY or as a Unix timestamp)"`
 	Category       string   `arg:"-c,--category" help:"the category to use for the target (if supportet by the target)"`
 	Poster         string   `arg:"--poster" help:"enable obfuscated-upload search using the NNTP From/poster field"`
