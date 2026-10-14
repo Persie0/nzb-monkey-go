@@ -172,6 +172,14 @@ func searchInGroup(group string) ([]*nzbparser.Nzb, error) {
 	Log.Info("First message ID set to: %s - Average date: %s", FormatNumberWithApostrophe(boundaries.FirstMessage.MessageID), boundaries.FirstMessage.Date.Local().Format("02.01.2006 15:04 MST"))
 	Log.Info("Last message ID set to:  %s - Average date: %s", FormatNumberWithApostrophe(boundaries.LastMessage.MessageID), boundaries.LastMessage.Date.Local().Format("02.01.2006 15:04 MST"))
 
+	// When complete NZBFinder-like metadata is supplied, the release title
+	// may be absent from every NNTP subject. Search the overview by poster,
+	// then verify size and file count instead of searching for the title.
+	if args.Poster != "" {
+		Log.Info("Using metadata-assisted direct search (poster, size, file count) ...")
+		return searchMetadata(group, boundaries.FirstMessage.MessageID, boundaries.LastMessage.MessageID)
+	}
+
 	// start peak rate measurement
 	Log.Debug("Starting peak rate measurement.")
 	ticker := time.NewTicker(1000 * time.Millisecond)
