@@ -23,6 +23,9 @@ type Args struct {
 	Groups      []string `arg:"-g,--group" help:"the group(s) to search in (several groups seperated with space)"`
 	Date        string   `arg:"-d,--date" help:"the date the upload was posted to Usenet (either in the format DD.MM.YYYY or as a Unix timestamp)"`
 	Category    string   `arg:"-c,--category" help:"the category to use for the target (if supportet by the target)"`
+	Poster          string   `arg:"--poster" help:"enable obfuscated-upload search using the NNTP From/poster field"`
+	ExpectedFiles   int      `arg:"--expected-files" help:"expected number of files in the NZB for metadata search"`
+	ExpectedSizeGB  float64  `arg:"--expected-size-gb" help:"expected total NZB size in decimal GB for metadata search"`
 	UnixDate    int64    `arg:"-"` // will hold the parsed Unix timestamp
 	IsTimestamp bool     `arg:"-"` // will indicate if exact timestamp was passed as date
 	Config      string   `arg:"--config" help:"path to the config file"`
@@ -150,6 +153,19 @@ func checkArguments() {
 				Log.Error("Invalid input for --date")
 				exit(1)
 			}
+		}
+	}
+
+	// Metadata mode is explicit and requires independent checks against false
+	// positives: poster, number of files and total size.
+	if args.Poster != "" || args.ExpectedFiles != 0 || args.ExpectedSizeGB != 0 {
+		if strings.TrimSpace(args.Poster) == "" || args.ExpectedFiles < 1 || args.ExpectedSizeGB <= 0 || args.ExpectedSizeGB > 1000000 {
+			Log.Error("Metadata search requires --poster, --expected-files (positive) and --expected-size-gb (positive)")
+			exit(1)
+		}
+		if args.UnixDate == 0 || len(args.Groups) == 0 {
+			Log.Error("Metadata search also requires --date and at least one --group")
+			exit(1)
 		}
 	}
 
