@@ -16,7 +16,7 @@ const (
 )
 
 type metadataOverviewHit struct {
-	overview   nntp.MessageOverview
+	overview    nntp.MessageOverview
 	posterMatch bool
 }
 
